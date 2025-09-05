@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Stock-Well Vending - Favorites Survey</title>
+  <meta name="description" content="Pick your vending items so we can stock this machine with what you want." />
+  <style>
+    :root { --bg:#0f0f10; --card:#141416; --ink:#f4f4f5; --muted:#b5b5be; --line:#2a2a2e; --accent:#ff6a00; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: var(--bg); color: var(--ink); }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 24px; }
+    .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .badge { font-size: 12px; background: #1b1c1f; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+    h1 { font-size: 22px; margin: 4px 0 6px; }
+    p { margin: 0 0 14px; color: var(--muted); }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin: 8px 0 12px; }
+    .chip { font-size: 13px; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line); background:#1b1c1f; color:#ddd; cursor:pointer; user-select:none; }
+    .chip.active { background: linear-gradient(90deg, #202022 0%, var(--accent) 100%); color:#fff; border-color: transparent; }
+    .search { display:flex; gap:8px; align-items:center; margin: 8px 0 12px; }
+    .search input { width:100%; background:#191a1d; border:1px solid var(--line); border-radius:10px; color:var(--ink); padding:10px 12px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .item { background: #191a1d; border: 1px solid var(--line); border-radius: 12px; padding: 10px; display: flex; align-items: center; gap: 10px; }
+    .item input { transform: scale(1.2); }
+    .sectionTitle { margin-top: 14px; margin-bottom: 6px; font-size: 16px; color:#e7e7ea; }
+    .actions { display: flex; gap: 10px; margin-top: 14px; }
+    button { appearance: none; border: 0; border-radius: 10px; padding: 12px 16px; cursor: pointer; font-weight: 600; }
+    .btn { background: linear-gradient(90deg, #202022 0%, var(--accent) 100%); color: white; }
+    .ghost { background: #1b1c1f; color: #ddd; border: 1px solid var(--line); }
+    .hint { font-size: 12px; color: #8f9098; margin-top: 8px; }
+    .footer { margin-top: 16px; font-size: 12px; color: #8f9098; text-align: center; }
+    .error { color: #ff9a9a; margin-top: 8px; }
+    .ok { color: #6df0a6; margin-top: 8px; }
+    textarea { width:100%; background:#191a1d; border:1px solid var(--line); border-radius:10px; color:var(--ink); padding:10px; resize:vertical; }
+    label.small { display:block; margin: 8px 0 6px; color:#ddd; font-size: 14px; }
+    .empty { padding: 8px 0; color: #9a9aa3; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <div class="badge">Stock-Well Vending</div>
+      <div id="machineTag" class="badge">Machine: ...</div>
+    </div>
+
+    <div class="card">
+      <h1>Pick your favorites</h1>
+      <p>Help us stock this machine with what you actually want. Select as many items as you like.</p>
+
+      <form id="surveyForm">
+        <input type="hidden" name="machine_id" id="machine_id" />
+
+        <!-- Category filter chips -->
+        <div class="chips" id="chips"></div>
+
+        <!-- Search -->
+        <div class="search">
+          <input id="searchBox" type="search" placeholder="Search items... (e.g., Doritos, Kind Bar, Coke)" autocomplete="off" />
+        </div>
+
+        <!-- Items render here -->
+        <div id="itemsContainer"></div>
+        <div id="emptyMsg" class="empty" style="display:none">No items match your search or filter.</div>
+
+        <div class="hint">Selected: <span id="selectedCount">0</span> items</div>
+
+        <label for="suggestion" class="small">Suggest an item we do not carry (optional)</label>
+        <textarea id="suggestion" name="suggestion" rows="3" maxlength="240" placeholder="Type your suggestion here..."></textarea>
+        <div class="hint"><span id="sCount">0</span>/240</div>
+
+        <div id="msg" class=""></div>
+
+        <div class="actions">
+          <button type="submit" class="btn">Submit</button>
+          <button type="button" class="ghost" id="clearBtn">Clear</button>
+        </div>
+      </form>
+
+      <div class="footer">Thank you for helping us improve your breakroom.</div>
+    </div>
+  </div>
+
+  <script>
+    // IMPORTANT: now we hit our Netlify Function (same-origin)
+    const SCRIPT_ENDPOINT = "/.netlify/functions/submit";
+
+    // ---- category + items (keeping your merged, deduped sets) ----
+    const C_SALTY = "Salty & Crunchy";
+    const C_SWEET = "Sweet Indulgences";
+    const C_BAKERY = "Bakery & Pastries";
+    const C_BFY_SNACKS = "Better-For-You Snacks";
+    const C_SODA = "Carbonated Soft Drinks";
+    const C_WATER = "Pure Hydration";
+    const C_ENERGY = "Energy & Sports Drinks";
+    const C_TEA_JUICE = "Teas, Juices & Cold Coffees";
+    const C_HEALTHY_DRINKS = "Health-Conscious Beverages";
+    const CATEGORIES = [C_SALTY, C_SWEET, C_BAKERY, C_BFY_SNACKS, C_SODA, C_WATER, C_ENERGY, C_TEA_JUICE, C_HEALTHY_DRINKS];
+
+    function unique(list){const s=new Set();const out=[];list.forEach(x=>{const k=x.toLowerCase();if(!s.has(k)){s.add(k);out.push(x);}});return out;}
+
+    const DATA = {
+      [C_SALTY]: unique(["Doritos Nacho Cheese","Cheetos Crunchy","Lays Classic","Ruffles Cheddar & Sour Cream","Tostitos Tortilla Chips","Fritos Original Corn Chips","SunChips Harvest Cheddar","Miss Vickie's Jalapeño Chips","Baked Lays","Classic Pretzels"]),
+      [C_SWEET]: unique(["Snickers","Twix","KitKat","M&Ms Peanut","Reese's Cups","Skittles","M&Ms Milk Chocolate","Sour Patch Kids","Starburst Fruit Chews","Hershey's Milk Chocolate Bar"]),
+      [C_BAKERY]: unique(["Pop-Tarts Frosted Strawberry","Oreo Cookies","Chips Ahoy! Chocolate Chip Cookies","Pop-Tarts Brown Sugar Cinnamon","Hostess Twinkies","Hostess CupCakes","Honey Bun","Cinnamon Roll","Grandma's Chocolate Chip Cookies","Famous Amos Chocolate Chip Cookies"]),
+      [C_BFY_SNACKS]: unique(["Kind Bar - Dark Chocolate Nuts & Sea Salt","Nature Valley Oats 'n Honey Granola Bar","Clif Bar - Chocolate Chip","LUNA Bar - LemonZest","RXBAR - Chocolate Sea Salt","Blue Diamond Almonds - Lightly Salted","Classic Trail Mix","Sensible Portions Veggie Straws","PopCorners Sea Salt","Welch's Fruit Snacks","SkinnyPop Popcorn","Sun-Maid Raisins"]),
+      [C_SODA]: unique(["Coke","Diet Coke","Coke Zero","Dr Pepper","Pepsi","Mountain Dew","Sprite","Diet Pepsi","A&W Root Beer","Sunkist Orange Soda"]),
+      [C_WATER]: unique(["Smartwater 700ml","LaCroix - Lime","Dasani Purified Water","Aquafina Purified Water","Bubly Sparkling Water","LaCroix Sparkling Water","Perrier Sparkling Mineral Water","Vitamin Water Zero"]),
+      [C_ENERGY]: unique(["Alani Nu - Cosmic Stardust","Alani Nu - Breezeberry","Celsius - Sparkling Orange","Celsius - Peach Vibe","Monster Energy (Green)","Red Bull 8.4oz","Gatorade - Cool Blue","Red Bull Sugarfree","Monster Energy Zero Ultra","Monster Energy Lo-Carb","Gatorade Lemon-Lime","Gatorade Fruit Punch","Powerade Mountain Berry Blast","Celsius"]),
+      [C_TEA_JUICE]: unique(["Arizona Iced Tea - Lemon","AriZona Green Tea","AriZona Arnold Palmer","Lipton Brisk Iced Tea Lemon","Gold Peak Iced Tea Sweetened","Starbucks Frappuccino Mocha","Starbucks Doubleshot Energy","Minute Maid Apple Juice","Tropicana Orange Juice","Minute Maid Lemonade"]),
+      [C_HEALTHY_DRINKS]: unique(["Honest Tea Unsweetened","GT's Synergy Kombucha Gingerade","ZICO Coconut Water","OWYN Protein Shake Dark Chocolate","Bolthouse Farms Smoothie","Zevia Zero Calorie Soda - Cola","Illy Issimo Cappuccino","V8 +Energy"])
+    };
+
+    // machine id
+    const params = new URLSearchParams(window.location.search);
+    const machineId = (params.get("machine_id") || "").trim();
+    document.getElementById("machineTag").textContent = machineId ? ("Machine: " + machineId) : "Machine: MISSING";
+    document.getElementById("machine_id").value = machineId;
+
+    const chipsEl = document.getElementById("chips");
+    const itemsContainer = document.getElementById("itemsContainer");
+    const emptyMsg = document.getElementById("emptyMsg");
+    const msg = document.getElementById("msg");
+    const suggestionEl = document.getElementById("suggestion");
+    const sCount = document.getElementById("sCount");
+    const searchBox = document.getElementById("searchBox");
+    const selectedCount = document.getElementById("selectedCount");
+
+    const ALL = "All";
+    let activeCategory = ALL;
+    let checkboxes = [];
+
+    function renderChips() {
+      chipsEl.innerHTML = "";
+      [ALL, ...CATEGORIES].forEach(lbl => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "chip" + (lbl === activeCategory ? " active" : "");
+        b.textContent = lbl;
+        b.addEventListener("click", () => { activeCategory = lbl; render(); });
+        chipsEl.appendChild(b);
+      });
+    }
+
+    function filteredItems() {
+      const term = (searchBox.value || "").toLowerCase();
+      const cats = activeCategory === ALL ? CATEGORIES : [activeCategory];
+      const rows = [];
+      const seen = new Set();
+      cats.forEach(cat => {
+        DATA[cat].forEach(name => {
+          if (!term || name.toLowerCase().includes(term)) {
+            const k = name.toLowerCase();
+            if (!seen.has(k)) { seen.add(k); rows.push({cat, name}); }
+          }
+        });
+      });
+      return rows;
+    }
+
+    function render() {
+      chipsEl.querySelectorAll(".chip").forEach(btn => btn.classList.toggle("active", btn.textContent === activeCategory));
+      itemsContainer.innerHTML = "";
+      const rows = filteredItems();
+      if (!rows.length) {
+        emptyMsg.style.display = "block";
+        checkboxes = [];
+        updateCounter();
+        return;
+      }
+      emptyMsg.style.display = "none";
+
+      // group by category
+      const byCat = {};
+      rows.forEach(r => (byCat[r.cat] = byCat[r.cat] || []).push(r.name));
+      const cats = activeCategory === ALL ? Object.keys(byCat) : [activeCategory];
+
+      checkboxes = [];
+      cats.forEach(cat => {
+        const title = document.createElement("div");
+        title.className = "sectionTitle";
+        title.textContent = cat;
+        itemsContainer.appendChild(title);
+
+        const grid = document.createElement("div");
+        grid.className = "grid";
+        (byCat[cat] || []).forEach(label => {
+          const id = "item_" + label.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+          const wrap = document.createElement("label");
+          wrap.className = "item";
+          wrap.innerHTML = `<input type="checkbox" name="items" value="${label}" id="${id}" /><span>${label}</span>`;
+          grid.appendChild(wrap);
+        });
+        itemsContainer.appendChild(grid);
+      });
+
+      checkboxes = Array.from(document.querySelectorAll('input[name="items"]'));
+      checkboxes.forEach(c => c.addEventListener("change", updateCounter));
+      updateCounter();
+    }
+
+    function updateCounter() {
+      const chosen = checkboxes.filter(c => c.checked).length;
+      selectedCount.textContent = chosen;
+    }
+
+    // init
+    renderChips();
+    render();
+    searchBox.addEventListener("input", render);
+    suggestionEl.addEventListener("input", () => { sCount.textContent = suggestionEl.value.length; });
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      checkboxes.forEach(c => c.checked = false);
+      suggestionEl.value = "";
+      sCount.textContent = "0";
+      searchBox.value = "";
+      activeCategory = ALL;
+      render();
+      msg.className = "";
+      msg.textContent = "";
+    });
+
+    // submit via Netlify Function
+    document.getElementById("surveyForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!machineId) { msg.className="error"; msg.textContent="Missing machine id."; return; }
+      const choices = checkboxes.filter(c => c.checked).map(c => c.value);
+      if (!choices.length) { msg.className="error"; msg.textContent="Please select at least one item."; return; }
+
+      const payload = {
+        machine_id: machineId,
+        choices,
+        suggestion: suggestionEl.value.trim() || "",
+        ts: new Date().toISOString(),
+        ua: navigator.userAgent
+      };
+
+      try {
+        const res = await fetch(SCRIPT_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        // treat any 2xx as success
+        if (res.status >= 200 && res.status < 300) {
+          msg.className = "ok";
+          msg.textContent = "Thanks! Your preferences were recorded.";
+          checkboxes.forEach(c => c.disabled = true);
+          suggestionEl.disabled = true;
+          searchBox.disabled = true;
+        } else {
+          throw new Error("Bad status: " + res.status);
+        }
+      } catch (err) {
+        msg.className = "error";
+        msg.textContent = "Submission failed. Please try again.";
+      }
+    });
+  </script>
+</body>
+</html>
+
