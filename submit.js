@@ -14,10 +14,14 @@ export async function handler(event) {
   }
 
   try {
-    const GAS_ENDPOINT = process.env.GAS_ENDPOINT; // set in Netlify env
+    const GAS_ENDPOINT = process.env.GAS_ENDPOINT;
     if (!GAS_ENDPOINT) {
-      return { statusCode: 500, headers: cors, body: 'GAS_ENDPOINT missing' };
+      return { statusCode: 500, headers: cors, body: 'Error: GAS_ENDPOINT env var is missing' };
     }
+
+    // Log to Netlify function logs (see Functions → submit → Logs)
+    console.log('Forwarding to GAS:', GAS_ENDPOINT);
+    console.log('Incoming body:', event.body);
 
     const resp = await fetch(GAS_ENDPOINT, {
       method: 'POST',
@@ -25,9 +29,18 @@ export async function handler(event) {
       body: event.body || '{}',
     });
 
-    const text = await resp.text(); // GAS often returns JSON as text
-    return { statusCode: 200, headers: cors, body: text };
+    const text = await resp.text();
+    console.log('GAS status:', resp.status, 'body:', text);
+
+    // Mirror Apps Script status (helps pinpoint failures)
+    return {
+      statusCode: resp.status,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+      body: text || JSON.stringify({ ok: true })
+    };
+
   } catch (err) {
+    console.error('Proxy error:', err);
     return { statusCode: 500, headers: cors, body: String(err) };
   }
 }
