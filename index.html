@@ -52,7 +52,7 @@
       <form id="surveyForm">
         <input type="hidden" name="machine_id" id="machine_id" />
 
-        <!-- Category filter chips -->
+        <!-- Category filter chips (multi-select) -->
         <div class="chips" id="chips"></div>
 
         <!-- Search -->
@@ -84,10 +84,10 @@
   </div>
 
   <script>
-    // Same-origin proxy (Netlify Function)
+    // Submit to your same-origin Netlify Function (proxy to GAS)
     const SCRIPT_ENDPOINT = "/.netlify/functions/submit";
 
-    // ---- Categories & Items (merged, deduped) ----
+    // ---- Categories & Items ----
     const C_SALTY = "Salty & Crunchy";
     const C_SWEET = "Sweet Indulgences";
     const C_BAKERY = "Bakery & Pastries";
@@ -113,9 +113,14 @@
       [C_HEALTHY_DRINKS]: unique(["Honest Tea Unsweetened","GT's Synergy Kombucha Gingerade","ZICO Coconut Water","OWYN Protein Shake Dark Chocolate","Bolthouse Farms Smoothie","Zevia Zero Calorie Soda - Cola","Illy Issimo Cappuccino","V8 +Energy"])
     };
 
-    // --- helpers / state ---
-    const keyOf = (name) => name.toLowerCase(); // stable key
-    const selected = new Set();                 // persist selections across renders
+    // Build a map (lowercase key -> original label) so we can submit with original casing
+    const keyOf = (name) => name.toLowerCase();
+    const labelByKey = new Map();
+    CATEGORIES.forEach(cat => (DATA[cat] || []).forEach(name => labelByKey.set(keyOf(name), name)));
+
+    // --- persistent state ---
+    const selected = new Set();   // item keys the user has chosen
+    const activeCats = new Set(); // categories currently filtered (empty => All)
 
     // machine id
     const params = new URLSearchParams(window.location.search);
@@ -136,35 +141,44 @@
     machineTag.textContent = machineId ? ("Machine: " + machineId) : "Machine: MISSING";
     machineInput.value = machineId;
 
-    // chips / filtering
-    const ALL = "All";
-    let activeCategory = ALL;
     let checkboxes = [];
 
+    // ---- chips (multi-select) ----
     function renderChips() {
       chipsEl.innerHTML = "";
-      [ALL, ...CATEGORIES].forEach(lbl => {
+
+      // "All" reset chip
+      const reset = document.createElement("button");
+      reset.type = "button";
+      reset.className = "chip" + (activeCats.size === 0 ? " active" : "");
+      reset.textContent = "All";
+      reset.addEventListener("click", () => {
+        activeCats.clear();
+        renderChips();
+        render();
+      });
+      chipsEl.appendChild(reset);
+
+      // category chips
+      CATEGORIES.forEach(lbl => {
         const b = document.createElement("button");
         b.type = "button";
-        b.className = "chip" + (lbl === activeCategory ? " active" : "");
+        b.className = "chip" + (activeCats.has(lbl) ? " active" : "");
         b.textContent = lbl;
         b.addEventListener("click", () => {
-          activeCategory = lbl;
-          updateChipsUI();
+          if (activeCats.has(lbl)) activeCats.delete(lbl);
+          else activeCats.add(lbl);
+          renderChips();
           render();
         });
         chipsEl.appendChild(b);
       });
     }
-    function updateChipsUI() {
-      chipsEl.querySelectorAll(".chip").forEach(btn => {
-        btn.classList.toggle("active", btn.textContent === activeCategory);
-      });
-    }
 
+    // ---- filtering & rendering ----
     function filteredItems() {
       const term = (searchBox.value || "").toLowerCase();
-      const cats = activeCategory === ALL ? CATEGORIES : [activeCategory];
+      const cats = activeCats.size ? Array.from(activeCats) : CATEGORIES;
       const rows = [];
       const seen = new Set();
       cats.forEach(cat => {
@@ -193,10 +207,10 @@
       // group by category for display
       const byCat = {};
       rows.forEach(r => (byCat[r.cat] = byCat[r.cat] || []).push(r.name));
-      const cats = activeCategory === ALL ? Object.keys(byCat) : [activeCategory];
+      const catsToShow = activeCats.size ? Array.from(activeCats) : Object.keys(byCat);
 
       const newCheckboxes = [];
-      cats.forEach(cat => {
+      catsToShow.forEach(cat => {
         const title = document.createElement("div");
         title.className = "sectionTitle";
         title.textContent = cat;
@@ -217,11 +231,11 @@
           input.id = id;
 
           // restore checked state from the persistent Set
-          input.checked = selected.has(keyOf(label));
+          const k = keyOf(label);
+          input.checked = selected.has(k);
 
-          // update the Set when user toggles
+          // update the Set when toggled
           input.addEventListener("change", (e) => {
-            const k = keyOf(label);
             if (e.target.checked) selected.add(k);
             else selected.delete(k);
             updateCounter();
@@ -248,33 +262,33 @@
       selectedCount.textContent = selected.size;
     }
 
-    // init
+    // ---- init ----
     renderChips();
     render();
     searchBox.addEventListener("input", render);
     suggestionEl.addEventListener("input", () => { sCount.textContent = suggestionEl.value.length; });
 
-    // clear: also clears the persistent selections Set
+    // Clear everything (including filters & selections)
     document.getElementById("clearBtn").addEventListener("click", () => {
       selected.clear();
       suggestionEl.value = "";
       sCount.textContent = "0";
       searchBox.value = "";
-      activeCategory = ALL;
-      updateChipsUI();
+      activeCats.clear();
+      renderChips();
       render();
       msg.className = "";
       msg.textContent = "";
     });
 
-    // submit via Netlify Function
+    // ---- submit ----
     document.getElementById("surveyForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       if (!machineId) { msg.className="error"; msg.textContent="Missing machine id."; return; }
       if (selected.size === 0) { msg.className="error"; msg.textContent="Please select at least one item."; return; }
 
-      // If you prefer original casing, we can store a map. For now, lowercase names are fine.
-      const choices = Array.from(selected);
+      // Convert keys back to original labels for storage
+      const choices = Array.from(selected).map(k => labelByKey.get(k) || k);
 
       const payload = {
         machine_id: machineId,
