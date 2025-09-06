@@ -64,6 +64,7 @@
         <div id="itemsContainer"></div>
         <div id="emptyMsg" class="empty" style="display:none">No items match your search or filter.</div>
 
+        <!-- Simple counter -->
         <div class="hint">Selected: <span id="selectedCount">0</span> items</div>
 
         <label for="suggestion" class="small">Suggest an item we do not carry (optional)</label>
@@ -83,10 +84,10 @@
   </div>
 
   <script>
-    // IMPORTANT: now we hit our Netlify Function (same-origin)
+    // Same-origin proxy (Netlify Function)
     const SCRIPT_ENDPOINT = "/.netlify/functions/submit";
 
-    // ---- category + items (keeping your merged, deduped sets) ----
+    // ---- Categories & Items (merged, deduped) ----
     const C_SALTY = "Salty & Crunchy";
     const C_SWEET = "Sweet Indulgences";
     const C_BAKERY = "Bakery & Pastries";
@@ -112,12 +113,17 @@
       [C_HEALTHY_DRINKS]: unique(["Honest Tea Unsweetened","GT's Synergy Kombucha Gingerade","ZICO Coconut Water","OWYN Protein Shake Dark Chocolate","Bolthouse Farms Smoothie","Zevia Zero Calorie Soda - Cola","Illy Issimo Cappuccino","V8 +Energy"])
     };
 
+    // --- helpers / state ---
+    const keyOf = (name) => name.toLowerCase(); // stable key
+    const selected = new Set();                 // persist selections across renders
+
     // machine id
     const params = new URLSearchParams(window.location.search);
     const machineId = (params.get("machine_id") || "").trim();
-    document.getElementById("machineTag").textContent = machineId ? ("Machine: " + machineId) : "Machine: MISSING";
-    document.getElementById("machine_id").value = machineId;
 
+    // dom
+    const machineTag = document.getElementById("machineTag");
+    const machineInput = document.getElementById("machine_id");
     const chipsEl = document.getElementById("chips");
     const itemsContainer = document.getElementById("itemsContainer");
     const emptyMsg = document.getElementById("emptyMsg");
@@ -127,6 +133,10 @@
     const searchBox = document.getElementById("searchBox");
     const selectedCount = document.getElementById("selectedCount");
 
+    machineTag.textContent = machineId ? ("Machine: " + machineId) : "Machine: MISSING";
+    machineInput.value = machineId;
+
+    // chips / filtering
     const ALL = "All";
     let activeCategory = ALL;
     let checkboxes = [];
@@ -138,8 +148,17 @@
         b.type = "button";
         b.className = "chip" + (lbl === activeCategory ? " active" : "");
         b.textContent = lbl;
-        b.addEventListener("click", () => { activeCategory = lbl; render(); });
+        b.addEventListener("click", () => {
+          activeCategory = lbl;
+          updateChipsUI();
+          render();
+        });
         chipsEl.appendChild(b);
+      });
+    }
+    function updateChipsUI() {
+      chipsEl.querySelectorAll(".chip").forEach(btn => {
+        btn.classList.toggle("active", btn.textContent === activeCategory);
       });
     }
 
@@ -149,10 +168,10 @@
       const rows = [];
       const seen = new Set();
       cats.forEach(cat => {
-        DATA[cat].forEach(name => {
+        (DATA[cat] || []).forEach(name => {
           if (!term || name.toLowerCase().includes(term)) {
-            const k = name.toLowerCase();
-            if (!seen.has(k)) { seen.add(k); rows.push({cat, name}); }
+            const k = keyOf(name);
+            if (!seen.has(k)) { seen.add(k); rows.push({ cat, name }); }
           }
         });
       });
@@ -160,9 +179,9 @@
     }
 
     function render() {
-      chipsEl.querySelectorAll(".chip").forEach(btn => btn.classList.toggle("active", btn.textContent === activeCategory));
       itemsContainer.innerHTML = "";
       const rows = filteredItems();
+
       if (!rows.length) {
         emptyMsg.style.display = "block";
         checkboxes = [];
@@ -171,12 +190,12 @@
       }
       emptyMsg.style.display = "none";
 
-      // group by category
+      // group by category for display
       const byCat = {};
       rows.forEach(r => (byCat[r.cat] = byCat[r.cat] || []).push(r.name));
       const cats = activeCategory === ALL ? Object.keys(byCat) : [activeCategory];
 
-      checkboxes = [];
+      const newCheckboxes = [];
       cats.forEach(cat => {
         const title = document.createElement("div");
         title.className = "sectionTitle";
@@ -185,24 +204,48 @@
 
         const grid = document.createElement("div");
         grid.className = "grid";
+
         (byCat[cat] || []).forEach(label => {
-          const id = "item_" + label.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+          const id = "item_" + keyOf(label).replace(/[^a-z0-9]+/g, "_");
           const wrap = document.createElement("label");
           wrap.className = "item";
-          wrap.innerHTML = `<input type="checkbox" name="items" value="${label}" id="${id}" /><span>${label}</span>`;
+
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.name = "items";
+          input.value = label;
+          input.id = id;
+
+          // restore checked state from the persistent Set
+          input.checked = selected.has(keyOf(label));
+
+          // update the Set when user toggles
+          input.addEventListener("change", (e) => {
+            const k = keyOf(label);
+            if (e.target.checked) selected.add(k);
+            else selected.delete(k);
+            updateCounter();
+          });
+
+          const span = document.createElement("span");
+          span.textContent = label;
+
+          wrap.appendChild(input);
+          wrap.appendChild(span);
           grid.appendChild(wrap);
+
+          newCheckboxes.push(input);
         });
+
         itemsContainer.appendChild(grid);
       });
 
-      checkboxes = Array.from(document.querySelectorAll('input[name="items"]'));
-      checkboxes.forEach(c => c.addEventListener("change", updateCounter));
+      checkboxes = newCheckboxes;
       updateCounter();
     }
 
     function updateCounter() {
-      const chosen = checkboxes.filter(c => c.checked).length;
-      selectedCount.textContent = chosen;
+      selectedCount.textContent = selected.size;
     }
 
     // init
@@ -210,12 +253,15 @@
     render();
     searchBox.addEventListener("input", render);
     suggestionEl.addEventListener("input", () => { sCount.textContent = suggestionEl.value.length; });
+
+    // clear: also clears the persistent selections Set
     document.getElementById("clearBtn").addEventListener("click", () => {
-      checkboxes.forEach(c => c.checked = false);
+      selected.clear();
       suggestionEl.value = "";
       sCount.textContent = "0";
       searchBox.value = "";
       activeCategory = ALL;
+      updateChipsUI();
       render();
       msg.className = "";
       msg.textContent = "";
@@ -225,8 +271,10 @@
     document.getElementById("surveyForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       if (!machineId) { msg.className="error"; msg.textContent="Missing machine id."; return; }
-      const choices = checkboxes.filter(c => c.checked).map(c => c.value);
-      if (!choices.length) { msg.className="error"; msg.textContent="Please select at least one item."; return; }
+      if (selected.size === 0) { msg.className="error"; msg.textContent="Please select at least one item."; return; }
+
+      // If you prefer original casing, we can store a map. For now, lowercase names are fine.
+      const choices = Array.from(selected);
 
       const payload = {
         machine_id: machineId,
@@ -242,13 +290,14 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        // treat any 2xx as success
         if (res.status >= 200 && res.status < 300) {
           msg.className = "ok";
           msg.textContent = "Thanks! Your preferences were recorded.";
+          // lock UI
           checkboxes.forEach(c => c.disabled = true);
           suggestionEl.disabled = true;
           searchBox.disabled = true;
+          chipsEl.querySelectorAll("button").forEach(b => b.disabled = true);
         } else {
           throw new Error("Bad status: " + res.status);
         }
@@ -260,4 +309,3 @@
   </script>
 </body>
 </html>
-
