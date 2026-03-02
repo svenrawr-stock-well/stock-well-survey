@@ -283,8 +283,18 @@
     // ---- submit ----
     document.getElementById("surveyForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      if (!machineId) { msg.className="error"; msg.textContent="Missing machine id."; return; }
-      if (selected.size === 0) { msg.className="error"; msg.textContent="Please select at least one item."; return; }
+      if (!machineId) { 
+        msg.className="error"; 
+        msg.textContent="Missing machine id."; 
+        return; 
+      }
+
+      const suggestionText = suggestionEl.value.trim();
+      if (selected.size === 0 && !suggestionText) { 
+        msg.className="error"; 
+        msg.textContent="Please select at least one item or enter a suggestion."; 
+        return; 
+      }
 
       // Convert keys back to original labels for storage
       const choices = Array.from(selected).map(k => labelByKey.get(k) || k);
