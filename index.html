@@ -83,35 +83,34 @@
     </div>
   </div>
 
-  <script>
-    // Submit to your same-origin Netlify Function (proxy to GAS)
-    const SCRIPT_ENDPOINT = "/.netlify/functions/submit";
+<script>
+  // Submit to your same-origin Netlify Function (proxy to GAS)
+  const SCRIPT_ENDPOINT = "/.netlify/functions/submit";
 
-    // ---- Categories & Items ----
-    const C_SALTY = "Salty & Crunchy";
-    const C_SWEET = "Sweet Indulgences";
-    const C_BAKERY = "Bakery & Pastries";
-    const C_BFY_SNACKS = "Better-For-You Snacks";
-    const C_SODA = "Carbonated Soft Drinks";
-    const C_WATER = "Pure Hydration";
-    const C_ENERGY = "Energy & Sports Drinks";
-    const C_TEA_JUICE = "Teas, Juices & Cold Coffees";
-    const C_HEALTHY_DRINKS = "Health-Conscious Beverages";
-    const CATEGORIES = [C_SALTY, C_SWEET, C_BAKERY, C_BFY_SNACKS, C_SODA, C_WATER, C_ENERGY, C_TEA_JUICE, C_HEALTHY_DRINKS];
+  // ---- Categories & Items ---- (EXACT MATCH to your new catalog PDF)
+  const C_COLD    = "Cold Beverages";
+  const C_CHIPS   = "Chips";
+  const C_CRACKERS = "Crackers & Nuts";
+  const C_BARS    = "Bars";
+  const C_COOKIES = "Cookies & Pastries";
+  const C_CHOCO   = "Chocolates & Candies";
+  const C_QUICK   = "Quick Meals & Deli Options";
+  const C_FROZEN  = "Frozen Market";
 
-    function unique(list){const s=new Set();const out=[];list.forEach(x=>{const k=x.toLowerCase();if(!s.has(k)){s.add(k);out.push(x);}});return out;}
+  const CATEGORIES = [C_COLD, C_CHIPS, C_CRACKERS, C_BARS, C_COOKIES, C_CHOCO, C_QUICK, C_FROZEN];
 
-    const DATA = {
-      [C_SALTY]: unique(["Doritos Nacho Cheese","Cheetos Crunchy","Lays Classic","Ruffles Cheddar & Sour Cream","Tostitos Tortilla Chips","Fritos Original Corn Chips","SunChips Harvest Cheddar","Miss Vickie's Jalapeño Chips","Baked Lays","Classic Pretzels"]),
-      [C_SWEET]: unique(["Snickers","Twix","KitKat","M&Ms Peanut","Reese's Cups","Skittles","M&Ms Milk Chocolate","Sour Patch Kids","Starburst Fruit Chews","Hershey's Milk Chocolate Bar"]),
-      [C_BAKERY]: unique(["Pop-Tarts Frosted Strawberry","Oreo Cookies","Chips Ahoy! Chocolate Chip Cookies","Pop-Tarts Brown Sugar Cinnamon","Hostess Twinkies","Hostess CupCakes","Honey Bun","Cinnamon Roll","Grandma's Chocolate Chip Cookies","Famous Amos Chocolate Chip Cookies"]),
-      [C_BFY_SNACKS]: unique(["Kind Bar - Dark Chocolate Nuts & Sea Salt","Nature Valley Oats 'n Honey Granola Bar","Clif Bar - Chocolate Chip","LUNA Bar - LemonZest","RXBAR - Chocolate Sea Salt","Blue Diamond Almonds - Lightly Salted","Classic Trail Mix","Sensible Portions Veggie Straws","PopCorners Sea Salt","Welch's Fruit Snacks","SkinnyPop Popcorn","Sun-Maid Raisins"]),
-      [C_SODA]: unique(["Coke","Diet Coke","Coke Zero","Dr Pepper","Pepsi","Mountain Dew","Sprite","Diet Pepsi","A&W Root Beer","Sunkist Orange Soda"]),
-      [C_WATER]: unique(["Smartwater 700ml","LaCroix - Lime","Dasani Purified Water","Aquafina Purified Water","Bubly Sparkling Water","LaCroix Sparkling Water","Perrier Sparkling Mineral Water","Vitamin Water Zero"]),
-      [C_ENERGY]: unique(["Alani Nu - Cosmic Stardust","Alani Nu - Breezeberry","Celsius - Sparkling Orange","Celsius - Peach Vibe","Monster Energy (Green)","Red Bull 8.4oz","Gatorade - Cool Blue","Red Bull Sugarfree","Monster Energy Zero Ultra","Monster Energy Lo-Carb","Gatorade Lemon-Lime","Gatorade Fruit Punch","Powerade Mountain Berry Blast","Celsius"]),
-      [C_TEA_JUICE]: unique(["Arizona Iced Tea - Lemon","AriZona Green Tea","AriZona Arnold Palmer","Lipton Brisk Iced Tea Lemon","Gold Peak Iced Tea Sweetened","Starbucks Frappuccino Mocha","Starbucks Doubleshot Energy","Minute Maid Apple Juice","Tropicana Orange Juice","Minute Maid Lemonade"]),
-      [C_HEALTHY_DRINKS]: unique(["Honest Tea Unsweetened","GT's Synergy Kombucha Gingerade","ZICO Coconut Water","OWYN Protein Shake Dark Chocolate","Bolthouse Farms Smoothie","Zevia Zero Calorie Soda - Cola","Illy Issimo Cappuccino","V8 +Energy"])
-    };
+  function unique(list){const s=new Set();const out=[];list.forEach(x=>{const k=x.toLowerCase();if(!s.has(k)){s.add(k);out.push(x);}});return out;}
+
+  const DATA = {
+    [C_COLD]: unique(["Coca-Cola","Diet Coke","Coca-Cola Zero","Pepsi","Diet Pepsi","Mountain Dew","A&W Root Beer","Sprite","7-Up","Canada Dry Ginger Ale","Dr Pepper","Diet Dr Pepper","Ghost","C4","Alani Nu","Celsius Tropical Vibes","Monster Energy","Red Bull","Coca-Cola","Diet Coke","Sprite","Pepsi","Mountain Dew","Crush Orange","Lipton Green Tea","Welch's Grape","Snapple Peach","Bai Blueberry","Muscle Milk Chocolate","Fairlife Protein Chocolate","Premier Protein Chocolate","Gatorade","Powerade","Minute Maid Lemonade","FIJI Water","Dasani Water"]),
+    [C_CHIPS]: unique(["Doritos Nacho Cheese","Doritos Cool Ranch","Miss Vickie's Jalapeño","Munchies Cheese Fix","Lays Classic","Lays Salt & Vinegar","Lays Sour Cream & Onion","Lays Barbecue","SunChips French Onion","SunChips Harvest Cheddar","Fritos Original","Fritos Chili Cheese","Cheetos Crunchy","Cheetos Flamin' Hot","Cheetos Puffs","PopCorners Sea Salt","PopCorners Kettle Corn","PopCorners Jalapeño Cheddar","PopCorners White Cheddar","Veggie Straws","Lays Oven Baked","Lays Baked","Ruffles Original","Ruffles Cheddar & Sour Cream","Funyuns","Takies Fuego"]),
+    [C_CRACKERS]: unique(["Goldfish Cheddar","Cheez-It Original","Honey Maid Graham Crackers","Snyder's Mini Pretzels","Dot's Homestyle Pretzels","Lance Captain's Wafers","Lance Toast Chee","Lance Captain's Wafers Peanut Butter","Planters Peanuts","Planters Deluxe Mixed Nuts","Planters Salted Peanuts","Kari's Mixed Nuts"]),
+    [C_BARS]: unique(["Nutri-Grain Apple Cinnamon","Nutri-Grain Strawberry","Nutri-Grain Blueberry","Kind Dark Chocolate Nuts & Sea Salt","Kind Caramel Almond & Sea Salt","Quest Chocolate Chip Cookie Dough","Nature Valley Oats 'n Honey","Nature Valley Peanut Butter","Nature Valley Chocolate Chunk","Clif Bar Chocolate Chip","Robert Irvine's Fit Crunch","Clif Bar Peanut Butter"]),
+    [C_COOKIES]: unique(["Grandma's Chocolate Chip","Grandma's Peanut Butter","Famous Amos Chocolate Chip","Grandma's Oatmeal Raisin","Teddy Grahams Honey","Nutter Butter","Oreo Original","Chips Ahoy! Chocolate Chip","Pop-Tarts Frosted Strawberry","Pop-Tarts Brown Sugar Cinnamon","Pop-Tarts Blueberry","Pop-Tarts S'mores","Little Bites Blueberry Muffins","Honey Bun","Big Texas Cinnamon Roll"]),
+    [C_CHOCO]: unique(["Snickers","Twix","Milky Way","Hershey's Milk Chocolate","Hershey's Special Dark","Butterfinger","Reese's Peanut Butter Cups","KitKat","Skittles Original","M&M's Milk Chocolate","M&M's Peanut","Skittles Sour","Extra Spearmint","Trident Original","Welch's Fruit Snacks"]),
+    [C_QUICK]: unique(["Hillshire Farms Turkey & Cheese","Lunchables Turkey & Cheddar","Cheese String","Honey Salmon Stackers","Nissin Cup Noodles Spicy","Cup Noodles Chicken","Brunswick Chicken Salad","Kraft Mac & Cheese","Fresh & Ready Turkey Sandwich","Fresh & Ready Chicken Caesar","Chicken Caesar Salad","Sabra Hummus & Crackers"]),
+    [C_FROZEN]: unique(["Uncruatables Pepperoni Pizza","Uncruatables Cheese Pizza","Jimmy Dean Pancakes & Sausage","Jimmy Dean Croissant Sausage","Hot Pockets Pepperoni Pizza","Hot Pockets Ham & Cheese","Marie Callender's Chicken Pot Pie","Kahiki Chicken Fried Rice","Oreo Frozen Sandwiches","Drumstick Vanilla","Salted Caramel Almond Ice Pops","Ben & Jerry's Chocolate Brownie"])
+  };
 
     // Build a map (lowercase key -> original label) so we can submit with original casing
     const keyOf = (name) => name.toLowerCase();
