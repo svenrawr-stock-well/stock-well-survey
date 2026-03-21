@@ -35,6 +35,12 @@
     textarea { width:100%; background:#191a1d; border:1px solid var(--line); border-radius:10px; color:var(--ink); padding:10px; resize:vertical; }
     label.small { display:block; margin: 8px 0 6px; color:#ddd; font-size: 16px; }
     .empty { padding: 8px 0; color: #9a9aa3; }
+    .sticky-bar { position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--line); padding:12px 24px; display:flex; justify-content:space-between; align-items:center; z-index:100; }
+    .sticky-bar .count { font-size:15px; color:var(--muted); }
+    .sticky-bar .count span { color:var(--accent); font-weight:600; }
+    .sticky-bar .btn { margin:0; padding:10px 20px; }
+    .sticky-bar .btn:disabled { opacity:0.6; cursor:not-allowed; }
+    .wrap { padding-bottom: 80px; }
     @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -64,23 +70,21 @@
         <div id="itemsContainer"></div>
         <div id="emptyMsg" class="empty" style="display:none">No items match your search or filter.</div>
 
-        <!-- Simple counter -->
-        <div class="hint">Selected: <span id="selectedCount">0</span> items</div>
-
-        <label for="suggestion" class="small">Suggest an item we do not carry — we'll do our best to accommodate. (optional)</label>
-        <textarea id="suggestion" name="suggestion" rows="3" maxlength="240" placeholder="Type your suggestion here..."></textarea>
-        <div class="hint"><span id="sCount">0</span>/240</div>
+        <label for="suggestion" class="small">Comments or suggestions — tell us what you'd like to see, or let us know how we're doing. (optional)</label>
+        <textarea id="suggestion" name="suggestion" rows="3" maxlength="240" placeholder="Suggest an item, share feedback, or let us know what you think..."></textarea>
+        <div class="hint" style="display:flex;justify-content:space-between;"><span><span id="sCount">0</span>/240</span><a href="#" id="clearBtn" style="color:var(--muted);font-size:12px;">Clear all selections</a></div>
 
         <div id="msg" class=""></div>
 
-        <div class="actions">
-          <button type="submit" class="btn">Submit</button>
-          <button type="button" class="ghost" id="clearBtn">Clear</button>
-        </div>
       </form>
 
       <div class="footer">Thank you for helping us improve your breakroom.</div>
     </div>
+  </div>
+
+  <div class="sticky-bar">
+    <div class="count"><span id="selectedCount">0</span> items selected</div>
+    <button type="submit" form="surveyForm" class="btn" id="submitBtn">Submit</button>
   </div>
 
 <script>
@@ -268,7 +272,8 @@
     suggestionEl.addEventListener("input", () => { sCount.textContent = suggestionEl.value.length; });
 
     // Clear everything (including filters & selections)
-    document.getElementById("clearBtn").addEventListener("click", () => {
+    document.getElementById("clearBtn").addEventListener("click", (e) => {
+      e.preventDefault();
       selected.clear();
       suggestionEl.value = "";
       sCount.textContent = "0";
@@ -281,6 +286,7 @@
     });
 
     // ---- submit ----
+    const submitBtn = document.getElementById("submitBtn");
     document.getElementById("surveyForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       if (!machineId) { 
@@ -292,9 +298,13 @@
       const suggestionText = suggestionEl.value.trim();
       if (selected.size === 0 && !suggestionText) { 
         msg.className="error"; 
-        msg.textContent="Please select at least one item or enter a suggestion."; 
+        msg.textContent="Please select at least one item or enter a comment."; 
         return; 
       }
+
+      // Loading state
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting...";
 
       // Convert keys back to original labels for storage
       const choices = Array.from(selected).map(k => labelByKey.get(k) || k);
@@ -316,6 +326,7 @@
         if (res.status >= 200 && res.status < 300) {
           msg.className = "ok";
           msg.textContent = "Thanks! Your preferences were recorded.";
+          submitBtn.textContent = "Submitted ✓";
           // lock UI
           checkboxes.forEach(c => c.disabled = true);
           suggestionEl.disabled = true;
@@ -327,6 +338,8 @@
       } catch (err) {
         msg.className = "error";
         msg.textContent = "Submission failed. Please try again.";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit";
       }
     });
   </script>
