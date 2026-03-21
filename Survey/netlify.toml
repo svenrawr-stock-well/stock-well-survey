@@ -1,0 +1,9 @@
+[build]
+  functions = "netlify/functions"
+  publish = "."    # repo root where index.html lives
+
+# Optional: set CORS headers site-wide (function already returns CORS)
+[[headers]]
+  for = "/*"
+  [headers.values]
+  Access-Control-Allow-Origin = "https://survey.stock-well.com"
